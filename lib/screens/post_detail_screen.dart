@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/post.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
@@ -72,6 +73,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 添加帖子大图
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 200,
+                child: CachedNetworkImage(
+                  imageUrl: post.imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[300],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error, size: 48),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               post.title,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -125,8 +147,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     ListTile(
                       title: Text(user.name),
                       subtitle: Text(user.email),
+                      // 使用随机用户头像，基于用户ID生成不同的图片
                       leading: CircleAvatar(
-                        child: Text(user.name[0]),
+                        radius: 25,
+                        backgroundImage: CachedNetworkImageProvider(
+                          'https://i.pravatar.cc/100?u=${user.id}',
+                        ),
+                        onBackgroundImageError: (exception, stackTrace) {
+                          // 如果加载失败，回退到文字头像
+                          return;
+                        },
+                        child: null, // 设为null，因为使用了backgroundImage
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -172,26 +203,48 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Widget _buildCommentItem(dynamic comment) {
+    // 从邮箱生成一个唯一值作为头像ID，确保相同邮箱显示相同头像
+    final String avatarId = comment['email'].toString().replaceAll(RegExp(r'[^\w\s]+'), '');
+    
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              comment['name'],
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            // 添加评论者头像
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: CachedNetworkImageProvider(
+                'https://i.pravatar.cc/80?u=$avatarId',
+              ),
+              onBackgroundImageError: (exception, stackTrace) {
+                // 如果加载失败，使用默认头像
+              },
+              child: null,
             ),
-            Text(
-              comment['email'],
-              style: const TextStyle(
-                color: Colors.blue,
-                fontSize: 12.0,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    comment['name'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    comment['email'],
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontSize: 12.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(comment['body']),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(comment['body']),
           ],
         ),
       ),
